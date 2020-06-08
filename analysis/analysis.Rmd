@@ -60,36 +60,36 @@ data_iat_for_scoring_subset <- read_rds("../data/data_iat_for_scoring_subset.rds
 
 ```{r}
 
-data_descriptives <- data_for_analysis %>%
-  distinct(session_id, .keep_all = TRUE) 
-
-data_descriptives %>%
-  count(domain) %>% 
-  kable() %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-data_descriptives %>%
-  count(domain) %>% 
-  summarize(total_n = sum(n),
-            min_n_per_domain = min(n),
-            max_n_per_domain = max(n),
-            mean_n_per_domain = round(mean(n, na.rm = TRUE), 2),
-            sd_n_per_domain = round(sd(n, na.rm = TRUE), 2)) %>% 
-  kable() %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-data_descriptives %>%
-  summarize(min_age = round(min(age, na.rm = TRUE), 2),
-            max_age = round(max(age, na.rm = TRUE), 2),
-            mean_age = round(mean(age, na.rm = TRUE), 2),
-            sd_age = round(sd(age, na.rm = TRUE), 2)) %>% 
-  kable() %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-data_descriptives %>%
-  count(gender) %>% 
-  kable() %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+# data_descriptives <- data_for_analysis %>%
+#   distinct(session_id, .keep_all = TRUE) 
+# 
+# data_descriptives %>%
+#   count(domain) %>% 
+#   kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+# 
+# data_descriptives %>%
+#   count(domain) %>% 
+#   summarize(total_n = sum(n),
+#             min_n_per_domain = min(n),
+#             max_n_per_domain = max(n),
+#             mean_n_per_domain = round(mean(n, na.rm = TRUE), 2),
+#             sd_n_per_domain = round(sd(n, na.rm = TRUE), 2)) %>% 
+#   kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+# 
+# data_descriptives %>%
+#   summarize(min_age = round(min(age, na.rm = TRUE), 2),
+#             max_age = round(max(age, na.rm = TRUE), 2),
+#             mean_age = round(mean(age, na.rm = TRUE), 2),
+#             sd_age = round(sd(age, na.rm = TRUE), 2)) %>% 
+#   kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+# 
+# data_descriptives %>%
+#   count(gender) %>% 
+#   kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
@@ -158,19 +158,18 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
           select(-splits) %>%
           unnest(D_metrics) %>%
           group_by(session_id) %>%
-          dplyr::summarize(D_ci_lwr = quantile(D, 0.025, na.rm = TRUE),
-                           D_ci_upr = quantile(D, 0.975, na.rm = TRUE)) 
+          dplyr::summarize(D_ci_lower = quantile(D, 0.025, na.rm = TRUE),
+                           D_ci_upper = quantile(D, 0.975, na.rm = TRUE)) 
       })
     ) %>%
-    mutate(Effect = ifelse((D_ci_lwr < 0 & D_ci_upr < 0) |
-                             (D_ci_lwr > 0 & D_ci_upr > 0), "Significant", "Non-signficant"),
-           Effect_binary = ifelse(Effect == "Significant", TRUE, FALSE),
-           D_ci_width = D_ci_upr - D_ci_lwr) %>%
+    mutate(sig = ifelse((D_ci_lower < 0 & D_ci_upper < 0) | (D_ci_lower > 0 & D_ci_upper > 0), TRUE, FALSE),
+           D_ci_width = D_ci_upper - D_ci_lower) %>%
     round_df(3)
   
   data_D_scores_with_bootstrapped_CIs <- data_bootstrapped_CIs %>%
     full_join(data_D_scores, by = "session_id") %>%
-    left_join(distinct(select(data_trimmed, session_id, domain), .keep_all = TRUE), by = "session_id")
+    left_join(distinct(select(data_trimmed, session_id, domain), .keep_all = TRUE), by = "session_id") %>%
+    select(session_id, domain, D, D_ci_lower, D_ci_upper, sig, D_ci_width)
   
   # end timer
   end <- Sys.time()
@@ -179,7 +178,7 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
   end - start
 
   # save to disk
-  write_rds(data_D_scores_with_bootstrapped_CIs, file = "models/data_D_scores_with_bootstrapped_CIs.rds")
+  write_rds(data_D_scores_with_bootstrapped_CIs, "models/data_D_scores_with_bootstrapped_CIs.rds")
   
 }
 
@@ -192,7 +191,7 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
 # plot
 ggplot(data_D_scores_with_bootstrapped_CIs) +
   geom_hline(yintercept = 0, linetype = "dotted") +
-  geom_linerange(aes(x = session_id, ymin = D_ci_lwr, ymax = D_ci_upr, color = Effect), 
+  geom_linerange(aes(x = session_id, ymin = D_ci_lower, ymax = D_ci_upper, color = Effect), 
                  alpha = 0.3) + 
   geom_point(aes(session_id, D_median, color = Effect), size = 0.5) +
   theme_classic() +
@@ -205,7 +204,7 @@ ggplot(data_D_scores_with_bootstrapped_CIs) +
 # separated by domains
 ggplot(data_D_scores_with_bootstrapped_CIs) +
   geom_hline(yintercept = 0, linetype = "dotted") +
-  geom_linerange(aes(x = session_id, ymin = D_ci_lwr, ymax = D_ci_upr, color = Effect),
+  geom_linerange(aes(x = session_id, ymin = D_ci_lower, ymax = D_ci_upper, color = Effect),
                  alpha = 0.3) +
   #geom_point(aes(session_id, D, color = Effect)) +
   geom_point(aes(session_id, D_median, color = Effect), size = 0.5) +
@@ -252,8 +251,8 @@ boots <- bootstraps(data_D_scores_with_bootstrapped_CIs, times = 2000)
 helper_function <- function(split) {
 
   estimate <- analysis(split)$D_median
-  ci_lower <- analysis(split)$D_ci_lwr
-  ci_upper <- analysis(split)$D_ci_upr
+  ci_lower <- analysis(split)$D_ci_lower
+  ci_upper <- analysis(split)$D_ci_upper
   
   n_estimate <- length(estimate)
   n_ci_lower <- length(ci_lower)

@@ -42,7 +42,8 @@ round_df <- function(df, n_digits = 3) {
 }
 
 # run furrr:::future_map in parallel
-plan(multiprocess)
+future::plan(multiprocess)
+options(future.globals.maxSize = 3000 * 1024^2)
 
 # options
 options(knitr.table.format = "html") # necessary configuration of tables
@@ -91,6 +92,7 @@ data_descriptives %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
+
 # Bootstrap 95% CIs on D scores
 
 ## Bootstrapping CIs
@@ -105,7 +107,7 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
 } else {
   
   # n boots for all metrics
-  nboots <- 10 # 2000
+  nboots <- 2000 
   
   # trim RTs>10000 ms
   data_trimmed <- data_iat_for_scoring_subset %>%
@@ -146,7 +148,7 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
   start <- Sys.time()
   
   # apply to each bootstrap
-  data_D_scores_with_bootstrapped_CIs <- data_splits %>%
+  data_bootstrapped_CIs <- data_splits %>%
     mutate(D_metrics = furrr::future_map(splits, calc_D)) %>%
     select(-splits) %>%
     unnest(D_metrics) %>%
@@ -158,6 +160,9 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
                              (D_ci_lwr > 0 & D_ci_upr > 0), "Significant", "Non-signficant"),
            Effect_binary = ifelse(Effect == "Significant", TRUE, FALSE),
            D_ci_width = D_ci_upr - D_ci_lwr) %>%
+    round_df(3)
+  
+  data_D_scores_with_bootstrapped_CIs <- data_bootstrapped_CIs %>%
     full_join(data_D_scores, by = "session_id") %>%
     left_join(distinct(select(data_trimmed, session_id, domain), .keep_all = TRUE), by = "session_id")
   

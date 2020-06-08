@@ -1,0 +1,118 @@
+---
+title: "Data processing"
+author: "Ian Hussey^[Ghent University. Email: ian.hussey@ugent.be]"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      warning=FALSE,
+                      cache.lazy=FALSE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+
+# function to round all numeric vars in a data frame
+round_df <- function(df, n_digits = 3) {
+  df %>% mutate_if(is.numeric, round, digits = n_digits)
+}
+
+load("../../AIID-study/data/processed/AIID_data.RData")
+load("../../AIID-study/data/raw/raw_iat.RData")
+
+```
+
+# IAT data
+
+```{r}
+
+# exclude values that should not exist
+temp_iat <- raw_iat %>%
+  filter(block_number %in% c(0,1,2,3,4,5,6)) %>%
+  filter(trial_latency >= 0) %>%  # remove negative and zero reaction times
+  filter(trial_error %in% c(0,1))  # remove if accuracy is not 0 or 1
+
+# list session_ids that have at least some data in all blocks
+some_blocks <- temp_iat %>%
+  distinct(session_id, block_number) %>%
+  count(session_id) %>%
+  filter(n == 7)  # remove those with other than 7 blocks
+
+# exclude session_ids with the wrong n of trials per block
+temp_iat <- semi_join(temp_iat, some_blocks, by = "session_id")
+
+# find participants with the correct number of trials per block
+trials_per_block <- temp_iat %>%
+  
+  # count number of trials per iat block per session
+  count(session_id, block_number) %>%
+  ungroup() %>%
+  
+  # declare required number of trials per block
+  mutate(required_trials_per_block = ifelse(block_number == 0, 20,
+                                            ifelse(block_number == 1, 20,
+                                                   ifelse(block_number == 2, 20,
+                                                          ifelse(block_number == 3, 40,
+                                                                 ifelse(block_number == 4, 40,
+                                                                        ifelse(block_number == 5, 20,
+                                                                               ifelse(block_number == 6, 40, NA)))))))) %>%
+  
+  # compare trials present against required trials
+  mutate(block_with_wrong_n_trials = ifelse(required_trials_per_block == n, 0, 1)) %>%
+  
+  # calculate number of blocks with incorrect trials for each session
+  group_by(session_id) %>%
+  summarise(n_blocks_with_wrong_n_trials = sum(block_with_wrong_n_trials)) %>%
+  ungroup() %>%
+  
+  # if this is greater than zero, exclude the session's iat data
+  # the resulting df is a list of participants who have the correct number of trials
+  mutate(exclude_participant_re_wrong_n_trials = ifelse(n_blocks_with_wrong_n_trials > 0, TRUE, FALSE)) %>%
+  filter(exclude_participant_re_wrong_n_trials == FALSE)
+
+
+data_iat_for_scoring <- 
+  # use the df created above to retain only sessions with the correct number of trials in the IAT
+  semi_join(temp_iat, trials_per_block, by = "session_id") %>%
+  mutate(block_number = as.numeric(as.character(block_number))) %>%
+  # filter only the blocks used to score the IAT
+  filter(block_number %in% c(2, 3, 5, 6)) %>%
+  mutate(block_type = ifelse(block_number %in% c(2, 3), 1, ifelse(block_number %in% c(5, 6), 2, NA)))
+
+# # write to disk
+# write_rds(data_iat_for_scoring, "data_iat_for_scoring.rds")
+
+```
+
+# Subset
+
+100 sessions per domain and iat type, complete IAT data only and only those who meet performance criteria
+
+```{r}
+
+subset_session_ids <- AIID_data %>%
+  filter(complete_iat_data == TRUE & exclude_iat_stricter == FALSE & iat_type == "Evaluation") %>%
+  group_by(domain) %>%
+  sample_n(100) %>%
+  ungroup() %>%
+  select(session_id, domain)
+
+data_iat_for_scoring_subset <- data_iat_for_scoring %>%
+  semi_join(subset_session_ids, by = "session_id") %>%
+  left_join(subset_session_ids, by = "session_id")
+
+# write to disk
+write_rds(data_iat_for_scoring_subset, "data_iat_for_scoring_subset.rds")
+
+```
+

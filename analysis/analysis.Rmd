@@ -131,9 +131,9 @@ if(file.exists("models/data_estimates_with_CIs.rds")) {
   data_d_scores <- data_trimmed %>%
     group_by(session_id) %>%
     summarise(da = (mean(trial_latency[block_number == 5]) - mean(trial_latency[block_number == 2])) /
-                sqrt((sd(trial_latency[block_number == 5]) + sd(trial_latency[block_number == 2]))/2),
+                sqrt((sd(trial_latency[block_number == 5])^2 + sd(trial_latency[block_number == 2])^2)/2),
               db = (mean(trial_latency[block_number == 6]) - mean(trial_latency[block_number == 3])) /
-                sqrt((sd(trial_latency[block_number == 6]) + sd(trial_latency[block_number == 3]))/2)) %>%
+                sqrt((sd(trial_latency[block_number == 6])^2 + sd(trial_latency[block_number == 3])^2)/2)) %>%
     mutate(d = (da + db)/2) %>%
     ungroup() %>%
     select(-da, -db) %>%
@@ -158,9 +158,9 @@ if(file.exists("models/data_estimates_with_CIs.rds")) {
     analysis(split) %>%
       group_by(session_id) %>%
       summarise(da = (mean(trial_latency[block_number == 5]) - mean(trial_latency[block_number == 2])) /
-                  sqrt((sd(trial_latency[block_number == 5]) + sd(trial_latency[block_number == 2]))/2),
+                  sqrt((sd(trial_latency[block_number == 5])^2 + sd(trial_latency[block_number == 2])^2)/2),
                 db = (mean(trial_latency[block_number == 6]) - mean(trial_latency[block_number == 3])) /
-                  sqrt((sd(trial_latency[block_number == 6]) + sd(trial_latency[block_number == 3]))/2)) %>%
+                  sqrt((sd(trial_latency[block_number == 6])^2 + sd(trial_latency[block_number == 3])^2)/2)) %>%
       mutate(d = (da + db)/2) %>%
       ungroup() %>%
       select(-da, -db) %>%

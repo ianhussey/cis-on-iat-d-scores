@@ -96,14 +96,14 @@ data_iat_for_scoring <-
 
 # Subset
 
-100 sessions per domain and iat type, complete IAT data only and only those who meet performance criteria
+500 sessions per domain and iat type, complete IAT data only and only those who meet performance criteria
 
 ```{r}
 
 subset_session_ids <- AIID_data %>%
   filter(complete_iat_data == TRUE & exclude_iat_stricter == FALSE & iat_type == "Evaluation") %>%
   group_by(domain) %>%
-  sample_n(100) %>%
+  sample_n(500) %>%
   ungroup() %>%
   select(session_id, domain)
 
@@ -112,7 +112,7 @@ data_iat_for_scoring_subset <- data_iat_for_scoring %>%
   left_join(subset_session_ids, by = "session_id")
 
 # write to disk
-write_rds(data_iat_for_scoring_subset, "data_iat_for_scoring_subset.rds")
+write_rds(data_iat_for_scoring_subset, "data_iat_for_scoring_subset.rds", compress = "gz")
 
 ```
 

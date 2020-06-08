@@ -1739,11 +1739,11 @@ div.tocify {
 </div>
 <div id="subset" class="section level1">
 <h1>Subset</h1>
-<p>100 sessions per domain and iat type, complete IAT data only and only those who meet performance criteria</p>
+<p>500 sessions per domain and iat type, complete IAT data only and only those who meet performance criteria</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>subset_session_ids &lt;-<span class="st"> </span>AIID_data <span class="op">%&gt;%</span></span>
 <span id="cb3-2"><a href="#cb3-2"></a><span class="st">  </span><span class="kw">filter</span>(complete_iat_data <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span> <span class="op">&amp;</span><span class="st"> </span>exclude_iat_stricter <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span> <span class="op">&amp;</span><span class="st"> </span>iat_type <span class="op">==</span><span class="st"> &quot;Evaluation&quot;</span>) <span class="op">%&gt;%</span></span>
 <span id="cb3-3"><a href="#cb3-3"></a><span class="st">  </span><span class="kw">group_by</span>(domain) <span class="op">%&gt;%</span></span>
-<span id="cb3-4"><a href="#cb3-4"></a><span class="st">  </span><span class="kw">sample_n</span>(<span class="dv">100</span>) <span class="op">%&gt;%</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="st">  </span><span class="kw">sample_n</span>(<span class="dv">500</span>) <span class="op">%&gt;%</span></span>
 <span id="cb3-5"><a href="#cb3-5"></a><span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span></span>
 <span id="cb3-6"><a href="#cb3-6"></a><span class="st">  </span><span class="kw">select</span>(session_id, domain)</span>
 <span id="cb3-7"><a href="#cb3-7"></a></span>
@@ -1752,7 +1752,7 @@ div.tocify {
 <span id="cb3-10"><a href="#cb3-10"></a><span class="st">  </span><span class="kw">left_join</span>(subset_session_ids, <span class="dt">by =</span> <span class="st">&quot;session_id&quot;</span>)</span>
 <span id="cb3-11"><a href="#cb3-11"></a></span>
 <span id="cb3-12"><a href="#cb3-12"></a><span class="co"># write to disk</span></span>
-<span id="cb3-13"><a href="#cb3-13"></a><span class="kw">write_rds</span>(data_iat_for_scoring_subset, <span class="st">&quot;data_iat_for_scoring_subset.rds&quot;</span>)</span></code></pre></div>
+<span id="cb3-13"><a href="#cb3-13"></a><span class="kw">write_rds</span>(data_iat_for_scoring_subset, <span class="st">&quot;data_iat_for_scoring_subset.rds&quot;</span>, <span class="dt">compress =</span> <span class="st">&quot;gz&quot;</span>)</span></code></pre></div>
 </div>
 <div class="footnotes">
 <hr />

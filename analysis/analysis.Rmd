@@ -147,8 +147,27 @@ if(file.exists("models/data_D_scores_with_bootstrapped_CIs.rds")) {
   # start timer
   start <- Sys.time()
   
+  # # apply to each bootstrap
+  # data_bootstrapped_CIs <- data_splits %>%
+  #   mutate(D_metrics = furrr::future_map(splits, calc_D)) %>%
+  #   select(-splits) %>%
+  #   unnest(D_metrics) %>%
+  #   group_by(session_id) %>%
+  #   dplyr::summarize(D_ci_lwr = quantile(D, 0.025, na.rm = TRUE),
+  #                    D_ci_upr = quantile(D, 0.975, na.rm = TRUE)) %>%
+  #   ungroup() %>%
+  #   mutate(Effect = ifelse((D_ci_lwr < 0 & D_ci_upr < 0) |
+  #                            (D_ci_lwr > 0 & D_ci_upr > 0), "Significant", "Non-signficant"),
+  #          Effect_binary = ifelse(Effect == "Significant", TRUE, FALSE),
+  #          D_ci_width = D_ci_upr - D_ci_lwr) %>%
+  #   round_df(3)
+  
+  domains <- data_trimmed %>%
+    distinct(domain) 
+  
   # apply to each bootstrap
-  data_bootstrapped_CIs <- data_splits %>%
+  data_bootstrapped_CIs_1 <- data_splits %>%
+    filter(domain %in% pull(slice(domains, 1:10), domain)) %>%
     mutate(D_metrics = furrr::future_map(splits, calc_D)) %>%
     select(-splits) %>%
     unnest(D_metrics) %>%

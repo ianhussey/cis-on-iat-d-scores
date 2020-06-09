@@ -393,18 +393,20 @@ The width of a D score Confidence intervals was found to be wide: M = `r round(m
 
 While the minimum observed D scores was `r round(min(data_estimates_with_CIs$D), 2)` and max was `r round(max(data_estimates_with_CIs$D), 2)`, the outlier scores are clearly visible (see figure XXX). It is therefore likely to be more meaningful to note that 95% of D scores lie within the narrower range of `r round(as.numeric(trimmed_emprirical_range$percentile_025), 2)` to `r round(as.numeric(trimmed_emprirical_range$percentile_975), 2)`. It is useful to contextualize the precision of the estimation of a given IAT D score within this total observed ranged of D scores between participants. Specifically, the median CI width noted above represents `r round(median(data_estimates_with_CIs$D_ci_width)/as.numeric(trimmed_emprirical_range$range_empirical_95_percent)*100, 1)`% of the (95% trimmed) observed range of D scores. That is to say, the uncertainty around a given D score represents one third of the observed range of D scores: even knowing an individual's observed D score (e.g., moderately pro-white/anti-black), their 'true' D score may lie elsewhere on the range of possible values (e.g., from very pro-white/anti-black to very anti-white/pro-black). An individual IAT sig is therefore quite a poor measure for individual use.
 
-This can also be examined another way by posing the question 'what proportion of D scores can you tell apart from one another?' That is, is the probability that a given D score lies outside the CI of all the other D scores' CIs. For simplicity of implementation, this analysis compares all D scores against all confidence intervals. It is therefore slightly biased by comparing a D score against its own CI as well as all others. However, given the large number of comparisons (i.e., sample size: i.e., `r nrow(data_estimates_with_CIs)` total D scores) this bias is very slight. 95% CIs of this probability value are bootstrapped via case removal and the percentile method using 2000 resamples. The median bootstrapped probability is reported as the estimate for the sake of robustness.
+This can also be examined another way by posing the question 'what proportion of D scores can you tell apart from one another?' That is, is the probability that a given D score lies outside the CI of all the other D scores' CIs. For simplicity of implementation, this analysis compares all D scores against all confidence intervals. It is therefore slightly biased by comparing a D score against its own CI as well as all others. However, given the large number of comparisons (i.e., sample size: i.e., `r nrow(data_estimates_with_CIs)` total D scores) this bias is very slight. 95% CIs of this probability value are bootstrapped via case removal and the percentile method using 1000 resamples. The median bootstrapped probability is reported as the estimate for the sake of robustness.
 
 ```{r}
 
 # bootstrapping has a long execution time, so load saved values if they've already been calculated
-if(file.exists("models/probability_estimates.rds")) {
+if(file.exists("models/data_pairwise_comparisons.rds")) {
   
-  probability_estimates <- read_rds("models/probability_estimates.rds")
+  data_pairwise_comparisons <- read_rds("models/data_pairwise_comparisons.rds")
   
 } else {
   
-  boots <- bootstraps(data_estimates_with_CIs, times = 2000)
+  boots <- data_estimates_with_CIs %>%
+    group_by(domain) %>%
+    bootstraps(times = 1000)
   
   # helper function to apply workflow to each resample
   helper_function <- function(split) {
@@ -436,7 +438,7 @@ if(file.exists("models/probability_estimates.rds")) {
     select(-splits)
   
   # find CIs using percentile method
-  probability_estimates <- boot_probabilities %>% 
+  data_pairwise_comparisons <- boot_probabilities %>% 
     summarize(median   = quantile(percent_estimates_inside_cis, 0.500),
               ci_lower = quantile(percent_estimates_inside_cis, 0.025),
               ci_upper = quantile(percent_estimates_inside_cis, 0.975)) %>%
@@ -444,12 +446,12 @@ if(file.exists("models/probability_estimates.rds")) {
   
   
   # save to disk
-  write_rds(probability_estimates, "models/probability_estimates.rds")
+  write_rds(data_pairwise_comparisons, "models/data_pairwise_comparisons.rds")
   
 }
   
 ```
   
-It is not possible to differentiate between two randomly selected D scores in `r round(probability_estimates$median*100, 1)`% (95% CI [`r round(probability_estimates$ci_lower*100, 1)`, `r round(probability_estimates$ci_upper*100, 1)`]) of cases. This provides additional evidence that IRAP's individual level precision and therefore clinical utility is low.
+It is not possible to differentiate between two randomly selected D scores in `r round(data_pairwise_comparisons$median*100, 1)`% (95% CI [`r round(data_pairwise_comparisons$ci_lower*100, 1)`, `r round(data_pairwise_comparisons$ci_upper*100, 1)`]) of cases. This provides additional evidence that IRAP's individual level precision and therefore clinical utility is low.
 
 

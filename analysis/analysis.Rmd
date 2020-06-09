@@ -241,19 +241,49 @@ if(file.exists("models/data_estimates_with_CIs.rds")) {
 
 # plot
 data_estimates_with_CIs %>%
-    arrange(D) %>%
-    mutate(ordered_id = row_number()) %>%
+  arrange(D) %>%
+  mutate(ordered_id = row_number()) %>%
   ggplot() +
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_linerange(aes(x = ordered_id, ymin = D_ci_lower, ymax = D_ci_upper, color = D_sig), 
                  alpha = 0.3) + 
-  geom_point(aes(ordered_id, D, color = sig), size = 0.5) +
+  geom_point(aes(ordered_id, D, color = D_sig), size = 0.5) +
   theme_classic() +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
   scale_color_viridis_d(end = 0.6, direction = -1) +
   xlab("Participants ranked by D score") +
   ylab("IAT D score")
+
+```
+
+```{r}
+
+# plot
+data_estimates_with_CIs %>%
+  arrange(d) %>%
+  mutate(ordered_id = row_number()) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig), 
+                 alpha = 0.3) + 
+  geom_point(aes(ordered_id, d, color = d_sig), size = 0.5) +
+  theme_classic() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  scale_color_viridis_d(end = 0.6, direction = -1) +
+  xlab("Participants ranked by Cohen's d score") +
+  ylab("IAT Cohen's d score")
+
+```
+
+```{r}
+
+data_estimates_with_CIs %>%
+  select(session_id, D, d) %>%
+  gather(key, value, c(D, d)) %>%
+  ggplot(aes(value, color = key)) +
+  geom_density()
 
 ```
 
@@ -270,13 +300,36 @@ data_estimates_with_CIs %>%
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_linerange(aes(x = ordered_id, ymin = D_ci_lower, ymax = D_ci_upper, color = D_sig),
                  alpha = 0.3) +
-  geom_point(aes(ordered_id, D, color = sig), size = 0.5) +
+  geom_point(aes(ordered_id, D, color = D_sig), size = 0.5) +
   theme_classic() +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
   scale_color_viridis_d(end = 0.6, direction = -1) +
   xlab("Participant") +
   ylab("IAT D score") +
+  facet_wrap(~domain, ncol = 5)
+
+```
+
+```{r fig.height=25, fig.width=8}
+
+# separated by domains
+data_estimates_with_CIs %>%
+    group_by(domain) %>%
+    arrange(d, .by_group = TRUE) %>%
+    mutate(ordered_id = row_number()) %>%
+  ungroup() %>%
+  ggplot() +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig),
+                 alpha = 0.3) +
+  geom_point(aes(ordered_id, d, color = d_sig), size = 0.5) +
+  theme_classic() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  scale_color_viridis_d(end = 0.6, direction = -1) +
+  xlab("Participant") +
+  ylab("IAT Cohen's d score") +
   facet_wrap(~domain, ncol = 5)
 
 ```
@@ -291,11 +344,24 @@ data_estimates_with_CIs %>%
 ggplot(data_estimates_with_CIs, aes(D_ci_width)) +
   geom_density()
 
+ggplot(data_estimates_with_CIs, aes(d_ci_width)) +
+  geom_density()
+
+
+ggplot(data_estimates_with_CIs, aes(D_ci_width, color = domain)) +
+  geom_density() + 
+  theme(legend.position = "none")
+
+```
+
+
+```{r}
+
 ggplot(data_estimates_with_CIs, aes(D, D_ci_width)) +
-  geom_point(alpha = 0.2)
+  geom_point(alpha = 0.1)
 
 ggplot(data_estimates_with_CIs, aes(d, d_ci_width)) +
-  geom_point(alpha = 0.2)
+  geom_point(alpha = 0.1)
 
 ```
 
@@ -317,7 +383,7 @@ trimmed_emprirical_range <- data_estimates_with_CIs %>%
 
 ## Proportion of participants demonstrating a significant bias
 
-`r (1 - round(mean(data_estimates_with_CIs$sig_binary), 3))*100`% of D scores are not signfiicant from zero. So, while they might appear to be relatively large (e.g., D = 0.5), their CI does not exclude zero. Put another way, if we treat the zero point as meaningful, we have insufficient evidence to say whether a given D score represents an IAT sig in `r (1 - round(mean(data_estimates_with_CIs$sig_binary), 3))*100`% of cases in this large sample (`r nrow(data_estimates_with_CIs)/4` participants, `r nrow(data_estimates_with_CIs)` total D scores)).
+`r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of D scores are not signfiicant from zero. So, while they might appear to be relatively large (e.g., D = 0.5), their CI does not exclude zero. Put another way, if we treat the zero point as meaningful, we have insufficient evidence to say whether a given D score represents an IAT sig in `r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of cases in this large sample (`r nrow(data_estimates_with_CIs)` participants)).
 
 ## Estimation precision
 
@@ -325,52 +391,65 @@ Of course, while treating the zero point as meanining is common, it has been arg
 
 The width of a D score Confidence intervals was found to be wide: M = `r round(mean(data_estimates_with_CIs$D_ci_width), 2)`, SD = `r round(sd(data_estimates_with_CIs$D_ci_width), 2)`, Median = `r round(median(data_estimates_with_CIs$D_ci_width), 2)`, MAD = `r round(mad(data_estimates_with_CIs$D_ci_width), 2)`. Results in the tables above suggest that it doesn't vary much by trial type or domain. As such, when an individual demonstrates a D score of X, we can more accurately say their D score lies in the range of X ± a median of `r round(median(data_estimates_with_CIs$D_ci_width)/2, 2)`. 
 
-While the minimum observed D scores was `r round(min(data_estimates_with_CIs$D), 2)` and max was `r round(max(data_estimates_with_CIs$D), 2)`, the outlier scores are clearly visible (see figure XXX). It is therefore likely to be more meaningful to note that 95% of D scores lie within the narrower range of `r round(as.numeric(trimmed_emprirical_range$percentile_025), 2)` to `r round(as.numeric(trimmed_emprirical_range$percentile_975), 2)`. It is useful to contextualise the precision of the estimation of a given IAT D score within this total observed ranged of D scores between participants. Specifically, the median CI width noted above represents `r round(median(data_estimates_with_CIs$D_ci_width)/as.numeric(trimmed_emprirical_range$range_empirical_95_percent)*100, 1)`% of the (95% trimmed) observed range of D scores. That is to say, the uncertainty around a given D score representst the majority of the total range of D scores: even knowing an individual's observed D score (e.g., moderately pro-white/anti-black), their 'true' D score may lie almost anywhere else on the range of possible values (e.g., from very pro-white/anti-black to very anti-white/pro-black). An individual IAT sig is therefore quite a poor measure for individual use.
+While the minimum observed D scores was `r round(min(data_estimates_with_CIs$D), 2)` and max was `r round(max(data_estimates_with_CIs$D), 2)`, the outlier scores are clearly visible (see figure XXX). It is therefore likely to be more meaningful to note that 95% of D scores lie within the narrower range of `r round(as.numeric(trimmed_emprirical_range$percentile_025), 2)` to `r round(as.numeric(trimmed_emprirical_range$percentile_975), 2)`. It is useful to contextualize the precision of the estimation of a given IAT D score within this total observed ranged of D scores between participants. Specifically, the median CI width noted above represents `r round(median(data_estimates_with_CIs$D_ci_width)/as.numeric(trimmed_emprirical_range$range_empirical_95_percent)*100, 1)`% of the (95% trimmed) observed range of D scores. That is to say, the uncertainty around a given D score represents one third of the observed range of D scores: even knowing an individual's observed D score (e.g., moderately pro-white/anti-black), their 'true' D score may lie elsewhere on the range of possible values (e.g., from very pro-white/anti-black to very anti-white/pro-black). An individual IAT sig is therefore quite a poor measure for individual use.
 
 This can also be examined another way by posing the question 'what proportion of D scores can you tell apart from one another?' That is, is the probability that a given D score lies outside the CI of all the other D scores' CIs. For simplicity of implementation, this analysis compares all D scores against all confidence intervals. It is therefore slightly biased by comparing a D score against its own CI as well as all others. However, given the large number of comparisons (i.e., sample size: i.e., `r nrow(data_estimates_with_CIs)` total D scores) this bias is very slight. 95% CIs of this probability value are bootstrapped via case removal and the percentile method using 2000 resamples. The median bootstrapped probability is reported as the estimate for the sake of robustness.
 
 ```{r}
 
-boots <- bootstraps(data_estimates_with_CIs, times = 2000)
-
-# helper function to apply workflow to each resample
-helper_function <- function(split) {
-
-  estimate <- analysis(split)$D
-  ci_lower <- analysis(split)$D_ci_lower
-  ci_upper <- analysis(split)$D_ci_upper
+# bootstrapping has a long execution time, so load saved values if they've already been calculated
+if(file.exists("models/probability_estimates.rds")) {
   
-  n_estimate <- length(estimate)
-  n_ci_lower <- length(ci_lower)
-  n_ci_upper <- length(ci_upper)
+  probability_estimates <- read_rds("models/probability_estimates.rds")
   
-  r_estimate <- sum(rank(c(estimate, ci_lower))[1:n_estimate])
-  r_ci_upper <- sum(rank(c(ci_upper, estimate))[1:n_ci_upper])
+} else {
   
-  prob_estimate_inferior_to_ci_lower <- 1 - (r_estimate / n_estimate - (n_estimate + 1) / 2) / n_ci_lower
-  prob_estimate_superior_to_ci_upper <- 1 - (r_ci_upper / n_ci_upper - (n_ci_upper + 1) / 2) / n_estimate
+  boots <- bootstraps(data_estimates_with_CIs, times = 2000)
   
-  percent_estimates_inside_cis <- 1 - (prob_estimate_inferior_to_ci_lower + prob_estimate_superior_to_ci_upper)
+  # helper function to apply workflow to each resample
+  helper_function <- function(split) {
+    
+    estimate <- analysis(split)$D
+    ci_lower <- analysis(split)$D_ci_lower
+    ci_upper <- analysis(split)$D_ci_upper
+    
+    n_estimate <- length(estimate)
+    n_ci_lower <- length(ci_lower)
+    n_ci_upper <- length(ci_upper)
+    
+    r_estimate <- sum(rank(c(estimate, ci_lower))[1:n_estimate])
+    r_ci_upper <- sum(rank(c(ci_upper, estimate))[1:n_ci_upper])
+    
+    prob_estimate_inferior_to_ci_lower <- 1 - (r_estimate / n_estimate - (n_estimate + 1) / 2) / n_ci_lower
+    prob_estimate_superior_to_ci_upper <- 1 - (r_ci_upper / n_ci_upper - (n_ci_upper + 1) / 2) / n_estimate
+    
+    percent_estimates_inside_cis <- 1 - (prob_estimate_inferior_to_ci_lower + prob_estimate_superior_to_ci_upper)
+    
+    return(percent_estimates_inside_cis)
+    
+  }
   
-  return(percent_estimates_inside_cis)
+  # apply to each bootstrap
+  boot_probabilities <- boots %>% 
+    mutate(percent_estimates_inside_cis = furrr::future_map(splits, helper_function)) %>% 
+    unnest(percent_estimates_inside_cis) %>%
+    select(-splits)
+  
+  # find CIs using percentile method
+  probability_estimates <- boot_probabilities %>% 
+    summarize(median   = quantile(percent_estimates_inside_cis, 0.500),
+              ci_lower = quantile(percent_estimates_inside_cis, 0.025),
+              ci_upper = quantile(percent_estimates_inside_cis, 0.975)) %>%
+    round_df(3)
+  
+  
+  # save to disk
+  write_rds(probability_estimates, "models/probability_estimates.rds")
   
 }
-
-# apply to each bootstrap
-boot_probabilities <- boots %>% 
-  mutate(percent_estimates_inside_cis = furrr::future_map(splits, helper_function)) %>% 
-  unnest(percent_estimates_inside_cis) %>%
-  select(-splits)
-
-# find CIs using percentile method
-probability_estimates <- boot_probabilities %>% 
-  summarize(median   = quantile(percent_estimates_inside_cis, 0.500),
-            ci_lower = quantile(percent_estimates_inside_cis, 0.025),
-            ci_upper = quantile(percent_estimates_inside_cis, 0.975)) %>%
-  round_df(3)
-
+  
 ```
-
+  
 It is not possible to differentiate between two randomly selected D scores in `r round(probability_estimates$median*100, 1)`% (95% CI [`r round(probability_estimates$ci_lower*100, 1)`, `r round(probability_estimates$ci_upper*100, 1)`]) of cases. This provides additional evidence that IRAP's individual level precision and therefore clinical utility is low.
 
 

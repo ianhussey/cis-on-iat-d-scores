@@ -11,10 +11,6 @@ output:
     toc_float: yes
 ---
 
-# To do
-
-- Add ridge plots for data_D_boots_iterations
-
 # Overview 
 
 IAT trial type D scores are calculated from an average of only 18 pairs of reaction times. This would be deemed as far too low anywhere else in the reaction time literature. The implications of this can be seen in how poorly estimated any one IAT D score is. We can observe this by bootstrapping reaction times for each participant and trial type.
@@ -235,11 +231,10 @@ if(file.exists("models/data_estimates_with_CIs.rds")) {
 
 ```
 
-## Plots
+## Proportion significant
 
 ```{r}
 
-# plot
 data_estimates_with_CIs %>%
   arrange(D) %>%
   mutate(ordered_id = row_number()) %>%
@@ -247,7 +242,7 @@ data_estimates_with_CIs %>%
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_linerange(aes(x = ordered_id, ymin = D_ci_lower, ymax = D_ci_upper, color = D_sig), 
                  alpha = 0.3) + 
-  geom_point(aes(ordered_id, D, color = D_sig), size = 0.5) +
+  geom_point(aes(ordered_id, D), size = 0.5) +
   theme_classic() +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
@@ -256,37 +251,6 @@ data_estimates_with_CIs %>%
   ylab("IAT D score")
 
 ```
-
-```{r}
-
-# plot
-data_estimates_with_CIs %>%
-  arrange(d) %>%
-  mutate(ordered_id = row_number()) %>%
-  ggplot() +
-  geom_hline(yintercept = 0, linetype = "dotted") +
-  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig), 
-                 alpha = 0.3) + 
-  geom_point(aes(ordered_id, d, color = d_sig), size = 0.5) +
-  theme_classic() +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
-  scale_color_viridis_d(end = 0.6, direction = -1) +
-  xlab("Participants ranked by Cohen's d score") +
-  ylab("IAT Cohen's d score")
-
-```
-
-```{r}
-
-data_estimates_with_CIs %>%
-  select(session_id, D, d) %>%
-  gather(key, value, c(D, d)) %>%
-  ggplot(aes(value, color = key)) +
-  geom_density()
-
-```
-
 
 ```{r fig.height=25, fig.width=8}
 
@@ -311,68 +275,38 @@ data_estimates_with_CIs %>%
 
 ```
 
-```{r fig.height=25, fig.width=8}
-
-# separated by domains
-data_estimates_with_CIs %>%
-    group_by(domain) %>%
-    arrange(d, .by_group = TRUE) %>%
-    mutate(ordered_id = row_number()) %>%
-  ungroup() %>%
-  ggplot() +
-  geom_hline(yintercept = 0, linetype = "dotted") +
-  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig),
-                 alpha = 0.3) +
-  geom_point(aes(ordered_id, d, color = d_sig), size = 0.5) +
-  theme_classic() +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
-  scale_color_viridis_d(end = 0.6, direction = -1) +
-  xlab("Participant") +
-  ylab("IAT Cohen's d score") +
-  facet_wrap(~domain, ncol = 5)
-
-```
-
 ```{r}
 
 data_estimates_with_CIs %>%
-  summarize(median_half_ci_width = round(median(D_ci_width)/2, 2)) %>% 
+  summarize(prop_sig = mean(D_sig)) %>% 
+  round_df(2) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-ggplot(data_estimates_with_CIs, aes(D_ci_width)) +
-  geom_density()
-
-ggplot(data_estimates_with_CIs, aes(d_ci_width)) +
-  geom_density()
-
-
-ggplot(data_estimates_with_CIs, aes(D_ci_width, color = domain)) +
-  geom_density() + 
-  theme(legend.position = "none")
-
-```
-
-
-```{r}
-
-ggplot(data_estimates_with_CIs, aes(D, D_ci_width)) +
-  geom_point(alpha = 0.1)
-
-ggplot(data_estimates_with_CIs, aes(d, d_ci_width)) +
-  geom_point(alpha = 0.1)
-
-```
-
-
-```{r}
 
 data_estimates_with_CIs %>%
   group_by(domain) %>%
-  summarize(median_half_ci_width = round(median(D_ci_width)/2, 2)) %>% 
+  summarize(prop_sig = mean(D_sig)) %>% 
+  arrange(prop_sig) %>%
+  round_df(2) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+data_estimates_with_CIs %>%
+  group_by(domain) %>%
+  summarize(prop_sig = mean(D_sig)) %>% 
+  ungroup() %>%
+  summarize(min_prop_sig = min(prop_sig),
+            max_prop_sig = max(prop_sig),
+            mean_prop_sig = mean(prop_sig),
+            sd_prop_sig = sd(prop_sig)) %>%
+  round_df(2) %>%
+  gather() %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+```{r}
 
 trimmed_emprirical_range <- data_estimates_with_CIs %>%
   dplyr::summarize(percentile_025 = quantile(D, 0.025, na.rm = TRUE),
@@ -381,9 +315,44 @@ trimmed_emprirical_range <- data_estimates_with_CIs %>%
 
 ```
 
-## Proportion of participants demonstrating a significant bias
+`r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of D scores are not significantly different from zero. So, while they might appear to be relatively large (e.g., D = 0.5), their CI does not exclude zero. Put another way, if we treat the zero point as meaningful, we have insufficient evidence to say whether a given D score represents an IRAP effect in `r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of cases in this large sample (`r nrow(data_estimates_with_CIs)/4` participants, `r nrow(data_estimates_with_CIs)` total D scores, `r count(distinct(data_estimates_with_CIs, domain))` domains)).
 
-`r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of D scores are not signfiicant from zero. So, while they might appear to be relatively large (e.g., D = 0.5), their CI does not exclude zero. Put another way, if we treat the zero point as meaningful, we have insufficient evidence to say whether a given D score represents an IAT sig in `r (1 - round(mean(data_estimates_with_CIs$D_sig), 3))*100`% of cases in this large sample (`r nrow(data_estimates_with_CIs)` participants)).
+## Half CI width
+
+```{r}
+
+ggplot(data_estimates_with_CIs, aes(D_ci_width)) +
+  geom_density() 
+
+ggplot(data_estimates_with_CIs, aes(D_ci_width, color = domain)) +
+  geom_density(adjust = 1.5) +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+
+library(bayestestR)
+point_estimate(data_estimates_with_CIs$D_ci_width/2, centrality = "MAP") %>%
+  round_df(2) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+data_estimates_with_CIs %>%
+  group_by(domain) %>%
+  do(point_estimate(.$D_ci_width/2)) %>%
+  ungroup() %>%
+  round_df(2) %>%
+  summarize(min_map_half_ci_width = min(MAP),
+            max_map_half_ci_width = max(MAP),
+            mean_map_half_ci_width = mean(MAP),
+            sd_map_half_ci_width = sd(MAP)) %>%
+  round_df(2) %>%
+  gather() %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
 
 ## Estimation precision
 
@@ -454,4 +423,107 @@ if(file.exists("models/data_pairwise_comparisons.rds")) {
   
 It is not possible to differentiate between two randomly selected D scores in `r round(data_pairwise_comparisons$median*100, 1)`% (95% CI [`r round(data_pairwise_comparisons$ci_lower*100, 1)`, `r round(data_pairwise_comparisons$ci_upper*100, 1)`]) of cases. This provides additional evidence that IRAP's individual level precision and therefore clinical utility is low.
 
+## Cohen's d alternative
+
+```{r}
+
+# plot
+data_estimates_with_CIs %>%
+  arrange(d) %>%
+  mutate(ordered_id = row_number()) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig), 
+                 alpha = 0.3) + 
+  geom_point(aes(ordered_id, d), size = 0.5) +
+  theme_classic() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  scale_color_viridis_d(end = 0.6, direction = -1) +
+  xlab("Participants ranked by Cohen's d score") +
+  ylab("IAT Cohen's d score")
+
+```
+
+```{r}
+
+data_estimates_with_CIs %>%
+  select(session_id, D, d) %>%
+  gather(key, value, c(D, d)) %>%
+  ggplot(aes(value, color = key)) +
+  geom_density()
+
+```
+
+```{r fig.height=25, fig.width=8}
+
+# separated by domains
+data_estimates_with_CIs %>%
+    group_by(domain) %>%
+    arrange(d, .by_group = TRUE) %>%
+    mutate(ordered_id = row_number()) %>%
+  ungroup() %>%
+  ggplot() +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_linerange(aes(x = ordered_id, ymin = d_ci_lower, ymax = d_ci_upper, color = d_sig),
+                 alpha = 0.3) +
+  geom_point(aes(ordered_id, d, color = d_sig), size = 0.5) +
+  theme_classic() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  scale_color_viridis_d(end = 0.6, direction = -1) +
+  xlab("Participant") +
+  ylab("IAT Cohen's d score") +
+  facet_wrap(~domain, ncol = 5)
+
+```
+
+```{r}
+
+data_estimates_with_CIs %>%
+  summarize(median_half_ci_width = round(median(D_ci_width)/2, 2)) %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+ggplot(data_estimates_with_CIs, aes(D_ci_width)) +
+  geom_density()
+
+ggplot(data_estimates_with_CIs, aes(d_ci_width)) +
+  geom_density()
+
+
+ggplot(data_estimates_with_CIs, aes(D_ci_width, color = domain)) +
+  geom_density() + 
+  theme(legend.position = "none")
+
+```
+
+
+```{r}
+
+ggplot(data_estimates_with_CIs, aes(D, D_ci_width)) +
+  geom_point(alpha = 0.1) +
+  theme_classic()
+
+ggplot(data_estimates_with_CIs, aes(d, d_ci_width)) +
+  geom_point(alpha = 0.1) +
+  theme_classic()
+
+```
+
+
+```{r}
+
+data_estimates_with_CIs %>%
+  group_by(domain) %>%
+  summarize(median_half_ci_width = round(median(D_ci_width)/2, 2)) %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+trimmed_emprirical_range <- data_estimates_with_CIs %>%
+  dplyr::summarize(percentile_025 = quantile(D, 0.025, na.rm = TRUE),
+                   percentile_975 = quantile(D, 0.975, na.rm = TRUE)) %>%
+  mutate(range_empirical_95_percent = percentile_975 - percentile_025) 
+
+```
 
